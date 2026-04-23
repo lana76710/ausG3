@@ -24,15 +24,40 @@ namespace Modbus.ModbusFunctions
         /// <inheritdoc />
         public override byte[] PackRequest()
         {
-            //TO DO: IMPLEMENT
-            throw new NotImplementedException();
+            ModbusWriteCommandParameters p = CommandParameters as ModbusWriteCommandParameters;
+            byte[] packet = new byte[12];
+
+            packet[0] = (byte)(p.TransactionId >> 8);
+            packet[1] = (byte)(p.TransactionId & 0xFF);
+            packet[2] = 0;
+            packet[3] = 0;
+            packet[4] = 0;
+            packet[5] = 6;
+            packet[6] = p.UnitId;
+            packet[7] = p.FunctionCode;
+            packet[8] = (byte)(p.OutputAddress >> 8);
+            packet[9] = (byte)(p.OutputAddress & 0xFF);
+            packet[10] = (byte)(p.Value >> 8);
+            packet[11] = (byte)(p.Value & 0xFF);
+
+            return packet;
         }
 
         /// <inheritdoc />
         public override Dictionary<Tuple<PointType, ushort>, ushort> ParseResponse(byte[] response)
         {
-            //TO DO: IMPLEMENT
-            throw new NotImplementedException();
+            var result = new Dictionary<Tuple<PointType, ushort>, ushort>();
+
+            if ((response[7] & 0x80) != 0)
+            {
+                HandeException(response[8]);
+            }
+
+            ushort address = (ushort)((response[8] << 8) | response[9]);
+            ushort value = (ushort)((response[10] << 8) | response[11]);
+            result[new Tuple<PointType, ushort>(PointType.ANALOG_OUTPUT, address)] = value;
+
+            return result;
         }
     }
 }
