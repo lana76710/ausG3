@@ -60,9 +60,23 @@ namespace ProcessingModule
 
 		private void AutomationWorker_DoWork()
 		{
-			//while (!disposedValue)
-			//{
-			//}
+			while (!disposedValue)
+			{
+				automationTrigger.WaitOne();
+
+				foreach (IConfigItem configItem in configuration.GetConfigurationItems())
+				{
+					try
+					{
+						processingManager.ExecuteReadCommand(configItem, configuration.GetTransactionId(), configuration.UnitAddress, configItem.StartAddress, configItem.NumberOfRegisters);
+						Thread.Sleep(delayBetweenCommands);
+					}
+					catch (Exception ex)
+					{
+						string message = $"{ex.TargetSite.Name}: {ex.Message}";
+					}
+				}
+			}
 		}
 
 		#region IDisposable Support
@@ -79,6 +93,7 @@ namespace ProcessingModule
 			{
 				if (disposing)
 				{
+					automationWorker.Abort();
 				}
 				disposedValue = true;
 			}
