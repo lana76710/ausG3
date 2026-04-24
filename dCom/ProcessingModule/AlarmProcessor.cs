@@ -15,7 +15,14 @@ namespace ProcessingModule
         /// <returns>The alarm indication.</returns>
 		public AlarmType GetAlarmForAnalogPoint(double eguValue, IConfigItem configItem)
 		{
-			return AlarmType.NO_ALARM;
+            if (eguValue == configItem.AbnormalValue)
+                return AlarmType.ABNORMAL_VALUE;
+            if (eguValue > configItem.HighLimit)
+                return AlarmType.HIGH_ALARM;
+            if (eguValue < configItem.LowLimit)
+                return AlarmType.LOW_ALARM;
+
+            return AlarmType.NO_ALARM;
 		}
 
         /// <summary>
@@ -26,6 +33,9 @@ namespace ProcessingModule
         /// <returns>The alarm indication.</returns>
 		public AlarmType GetAlarmForDigitalPoint(ushort state, IConfigItem configItem)
 		{
+            if (state == configItem.AbnormalValue)
+                return AlarmType.ABNORMAL_VALUE;
+
             return AlarmType.NO_ALARM;
         }
 	}
