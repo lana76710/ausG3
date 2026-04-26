@@ -64,17 +64,17 @@ namespace ProcessingModule
                 {
                     configItem.SecondsPassedSinceLastPoll++;
 
+                    stateUpdater.LogMessage($"Item={configItem.Description}, Interval={configItem.AcquisitionInterval}, Passed={configItem.SecondsPassedSinceLastPoll}");
                     if (configItem.SecondsPassedSinceLastPoll >= configItem.AcquisitionInterval)
                     {
+                        processingManager.ExecuteReadCommand(
+                            configItem,
+                            configuration.GetTransactionId(),
+                            configuration.UnitAddress,
+                            configItem.StartAddress,
+                            configItem.NumberOfRegisters);
+
                         configItem.SecondsPassedSinceLastPoll = 0;
-                        try
-                        {
-                            processingManager.ExecuteReadCommand(configItem, configuration.GetTransactionId(), configuration.UnitAddress, configItem.StartAddress, configItem.NumberOfRegisters);
-                        }
-                        catch (Exception ex)
-                        {
-                            stateUpdater.LogMessage(ex.Message);
-                        }
                     }
                 }
             }

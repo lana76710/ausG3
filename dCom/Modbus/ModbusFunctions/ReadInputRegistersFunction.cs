@@ -24,43 +24,43 @@ namespace Modbus.ModbusFunctions
         /// <inheritdoc />
         public override byte[] PackRequest()
         {
-            ModbusReadCommandParameters p = CommandParameters as ModbusReadCommandParameters;
-            byte[] packet = new byte[12];
+            ModbusReadCommandParameters parameters = this.CommandParameters as ModbusReadCommandParameters;
+            byte[] request = new byte[12];
 
-            packet[0] = (byte)(p.TransactionId >> 8);
-            packet[1] = (byte)(p.TransactionId & 0xFF);
-            packet[2] = 0;
-            packet[3] = 0;
-            packet[4] = 0;
-            packet[5] = 6;
-            packet[6] = p.UnitId;
-            packet[7] = p.FunctionCode;
-            packet[8] = (byte)(p.StartAddress >> 8);
-            packet[9] = (byte)(p.StartAddress & 0xFF);
-            packet[10] = (byte)(p.Quantity >> 8);
-            packet[11] = (byte)(p.Quantity & 0xFF);
+            Buffer.BlockCopy(BitConverter.GetBytes(IPAddress.HostToNetworkOrder((short)parameters.TransactionId)), 0, request, 0, 2);
+            Buffer.BlockCopy(BitConverter.GetBytes(IPAddress.HostToNetworkOrder((short)parameters.ProtocolId)), 0, request, 2, 2);
+            Buffer.BlockCopy(BitConverter.GetBytes(IPAddress.HostToNetworkOrder((short)parameters.Length)), 0, request, 4, 2);
+            request[6] = parameters.UnitId;
 
-            return packet;
+            request[7] = parameters.FunctionCode;
+            Buffer.BlockCopy(BitConverter.GetBytes(IPAddress.HostToNetworkOrder((short)parameters.StartAddress)), 0, request, 8, 2);
+            Buffer.BlockCopy(BitConverter.GetBytes(IPAddress.HostToNetworkOrder((short)parameters.Quantity)), 0, request, 10, 2);
+
+            return request;
         }
 
         /// <inheritdoc />
         public override Dictionary<Tuple<PointType, ushort>, ushort> ParseResponse(byte[] response)
         {
-            ModbusReadCommandParameters p = CommandParameters as ModbusReadCommandParameters;
-            var result = new Dictionary<Tuple<PointType, ushort>, ushort>();
+            Dictionary<Tuple<PointType, ushort>, ushort> dict = new Dictionary<Tuple<PointType, ushort>, ushort>();
+            ModbusReadCommandParameters parameters = this.CommandParameters as ModbusReadCommandParameters;
 
             if ((response[7] & 0x80) != 0)
             {
                 HandeException(response[8]);
             }
-
-            for (int i = 0; i < p.Quantity; i++)
+            else
             {
-                ushort value = (ushort)((response[9 + i * 2] << 8) | response[10 + i * 2]);
-                result[new Tuple<PointType, ushort>(PointType.ANALOG_INPUT, (ushort)(p.StartAddress + i))] = value;
+                ushort quantity = parameters.Quantity;
+                for (int i = 0; i < quantity; i++)
+                {
+                    ushort value = (ushort)IPAddress.NetworkToHostOrder((short)BitConverter.ToUInt16(response, 9 + i * 2));
+                    ushort address = (ushort)(parameters.StartAddress + i);
+                    dict.Add(new Tuple<PointType, ushort>(PointType.ANALOG_INPUT, address), value);
+                }
             }
 
-            return result;
+            return dict;
         }
     }
 }

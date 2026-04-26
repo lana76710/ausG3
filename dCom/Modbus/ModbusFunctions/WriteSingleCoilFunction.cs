@@ -24,25 +24,31 @@ namespace Modbus.ModbusFunctions
         /// <inheritdoc />
         public override byte[] PackRequest()
         {
-            ModbusWriteCommandParameters p = CommandParameters as ModbusWriteCommandParameters;
-            byte[] packet = new byte[12];
+            ModbusWriteCommandParameters writeParams = (ModbusWriteCommandParameters)CommandParameters;
 
-            packet[0] = (byte)(p.TransactionId >> 8);
-            packet[1] = (byte)(p.TransactionId & 0xFF);
-            packet[2] = 0;
-            packet[3] = 0;
-            packet[4] = 0;
-            packet[5] = 6;
-            packet[6] = p.UnitId;
-            packet[7] = p.FunctionCode;
-            packet[8] = (byte)(p.OutputAddress >> 8);
-            packet[9] = (byte)(p.OutputAddress & 0xFF);
-            // Modbus coil: 0xFF00 = ON, 0x0000 = OFF
-            ushort coilValue = p.Value != 0 ? (ushort)0xFF00 : (ushort)0x0000;
-            packet[10] = (byte)(coilValue >> 8);
-            packet[11] = (byte)(coilValue & 0xFF);
+            byte[] request = new byte[12];
+            int offset = 0;
 
-            return packet;
+            Buffer.BlockCopy(BitConverter.GetBytes(IPAddress.HostToNetworkOrder((short)writeParams.TransactionId)), 0, request, offset, 2);
+            offset += 2;
+
+            Buffer.BlockCopy(BitConverter.GetBytes(IPAddress.HostToNetworkOrder((short)writeParams.ProtocolId)), 0, request, offset, 2);
+            offset += 2;
+
+            Buffer.BlockCopy(BitConverter.GetBytes(IPAddress.HostToNetworkOrder((short)writeParams.Length)), 0, request, offset, 2);
+            offset += 2;
+
+            request[offset++] = writeParams.UnitId;
+            request[offset++] = writeParams.FunctionCode;
+
+            Buffer.BlockCopy(BitConverter.GetBytes(IPAddress.HostToNetworkOrder((short)writeParams.OutputAddress)), 0, request, offset, 2);
+            offset += 2;
+
+            ushort coilValue = writeParams.Value == 0 ? (ushort)0x0000 : (ushort)0xFF00;
+            Buffer.BlockCopy(BitConverter.GetBytes(IPAddress.HostToNetworkOrder((short)coilValue)), 0, request, offset, 2);
+            offset += 2;
+
+            return request;
         }
 
         /// <inheritdoc />
@@ -57,8 +63,12 @@ namespace Modbus.ModbusFunctions
 
             ushort address = (ushort)((response[8] << 8) | response[9]);
             ushort rawValue = (ushort)((response[10] << 8) | response[11]);
-            ushort coilValue = rawValue != 0 ? (ushort)1 : (ushort)0;
-            result[new Tuple<PointType, ushort>(PointType.DIGITAL_OUTPUT, address)] = coilValue;
+
+            ushort normalizedValue = rawValue == 0xFF00 ? (ushort)1 : (ushort)0;
+
+            result.Add(
+                new Tuple<PointType, ushort>(PointType.DIGITAL_OUTPUT, address),
+                normalizedValue);
 
             return result;
         }

@@ -24,23 +24,30 @@ namespace Modbus.ModbusFunctions
         /// <inheritdoc />
         public override byte[] PackRequest()
         {
-            ModbusWriteCommandParameters p = CommandParameters as ModbusWriteCommandParameters;
-            byte[] packet = new byte[12];
+            ModbusWriteCommandParameters writeParams = (ModbusWriteCommandParameters)CommandParameters;
 
-            packet[0] = (byte)(p.TransactionId >> 8);
-            packet[1] = (byte)(p.TransactionId & 0xFF);
-            packet[2] = 0;
-            packet[3] = 0;
-            packet[4] = 0;
-            packet[5] = 6;
-            packet[6] = p.UnitId;
-            packet[7] = p.FunctionCode;
-            packet[8] = (byte)(p.OutputAddress >> 8);
-            packet[9] = (byte)(p.OutputAddress & 0xFF);
-            packet[10] = (byte)(p.Value >> 8);
-            packet[11] = (byte)(p.Value & 0xFF);
+            byte[] request = new byte[12];
+            int offset = 0;
 
-            return packet;
+            Buffer.BlockCopy(BitConverter.GetBytes(IPAddress.HostToNetworkOrder((short)writeParams.TransactionId)), 0, request, offset, 2);
+            offset += 2;
+
+            Buffer.BlockCopy(BitConverter.GetBytes(IPAddress.HostToNetworkOrder((short)writeParams.ProtocolId)), 0, request, offset, 2);
+            offset += 2;
+
+            Buffer.BlockCopy(BitConverter.GetBytes(IPAddress.HostToNetworkOrder((short)writeParams.Length)), 0, request, offset, 2);
+            offset += 2;
+
+            request[offset++] = writeParams.UnitId;
+            request[offset++] = writeParams.FunctionCode;
+
+            Buffer.BlockCopy(BitConverter.GetBytes(IPAddress.HostToNetworkOrder((short)writeParams.OutputAddress)), 0, request, offset, 2);
+            offset += 2;
+
+            Buffer.BlockCopy(BitConverter.GetBytes(IPAddress.HostToNetworkOrder((short)writeParams.Value)), 0, request, offset, 2);
+            offset += 2;
+
+            return request;
         }
 
         /// <inheritdoc />
@@ -55,7 +62,10 @@ namespace Modbus.ModbusFunctions
 
             ushort address = (ushort)((response[8] << 8) | response[9]);
             ushort value = (ushort)((response[10] << 8) | response[11]);
-            result[new Tuple<PointType, ushort>(PointType.ANALOG_OUTPUT, address)] = value;
+
+            result.Add(
+                new Tuple<PointType, ushort>(PointType.ANALOG_OUTPUT, address),
+                value);
 
             return result;
         }
